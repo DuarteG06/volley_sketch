@@ -55,10 +55,11 @@ This project is configured for GitHub Pages project-site deployment.
 - `.env.production` currently sets:
 
   ```bash
-  VITE_BASE_PATH=/volley_sketch/
+  VITE_BASE_PATH=/
   ```
 
-- If your GitHub repository name is different, update `.env.production` to match the repository path. For example, if the repo is named `my-volley-board`, set:
+- For a custom domain such as `volleysketch.volei.pt`, keep `VITE_BASE_PATH=/`.
+- If you are deploying to the default GitHub Pages project URL instead of a custom domain, update `.env.production` to match the repository path. For example, if the repo is named `my-volley-board`, set:
 
   ```bash
   VITE_BASE_PATH=/my-volley-board/
