@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { COURT_DIMENSIONS } from '../constants';
+import { COURT_DIMENSIONS, TOOLS } from '../constants';
 import { clientPointToNormalized, distanceToSegment } from '../utils/geometry';
 import CourtSvg from './CourtSvg';
 import MarkerSidebar from './MarkerSidebar';
@@ -15,14 +15,15 @@ function drawStroke(context, stroke, width, height) {
   context.lineCap = 'round';
   context.lineJoin = 'round';
   context.lineWidth = stroke.lineWidth;
-  context.globalCompositeOperation = stroke.tool === 'eraser' ? 'destination-out' : 'source-over';
-  context.strokeStyle = stroke.tool === 'eraser' ? 'rgba(0,0,0,1)' : stroke.color;
+  context.globalAlpha = stroke.opacity ?? 1;
+  context.globalCompositeOperation = stroke.tool === TOOLS.ERASER ? 'destination-out' : 'source-over';
+  context.strokeStyle = stroke.tool === TOOLS.ERASER ? 'rgba(0,0,0,1)' : stroke.color;
 
   if (stroke.points.length === 1) {
     const point = stroke.points[0];
     context.beginPath();
     context.arc(point.x * width, point.y * height, stroke.lineWidth / 2, 0, Math.PI * 2);
-    context.fillStyle = stroke.tool === 'eraser' ? 'rgba(0,0,0,1)' : stroke.color;
+    context.fillStyle = stroke.tool === TOOLS.ERASER ? 'rgba(0,0,0,1)' : stroke.color;
     context.fill();
   } else {
     context.beginPath();
@@ -64,6 +65,8 @@ export default function CourtBoard({
   const stageRef = useRef(null);
   const canvasRef = useRef(null);
   const drawingStrokeRef = useRef(null);
+  const pointerTrailRef = useRef(null);
+  const pointerTrailTimeoutRef = useRef(null);
   const lineEraseActiveRef = useRef(false);
   const draggingMarkerIdRef = useRef(null);
   const markerGrabOffsetRef = useRef({ x: 0, y: 0 });
@@ -73,6 +76,10 @@ export default function CourtBoard({
   const [stageBounds, setStageBounds] = useState({ left: 0, top: 0, width: 0, height: 0 });
   const [dragPreview, setDragPreview] = useState(null);
   const aspectRatio = COURT_DIMENSIONS[courtMode].aspectRatio;
+  const isFreehandTool =
+    toolSettings.activeTool === TOOLS.PEN || toolSettings.activeTool === TOOLS.ERASER;
+  const isDrawingTool = isFreehandTool || toolSettings.activeTool === TOOLS.LINE_ERASER;
+  const isPointerTool = toolSettings.activeTool === TOOLS.POINTER;
 
   function redrawCanvas(extraStroke = null) {
     const context = contextRef.current;
@@ -91,6 +98,16 @@ export default function CourtBoard({
     if (extraStroke) {
       drawStroke(context, extraStroke, stageBounds.width, stageBounds.height);
     }
+  }
+
+  function clearPointerTrail() {
+    pointerTrailRef.current = null;
+    redrawCanvas(drawingStrokeRef.current);
+  }
+
+  function schedulePointerTrailClear() {
+    window.clearTimeout(pointerTrailTimeoutRef.current);
+    pointerTrailTimeoutRef.current = window.setTimeout(clearPointerTrail, 650);
   }
 
   function isPointInsideStage(clientX, clientY) {
@@ -216,17 +233,47 @@ export default function CourtBoard({
   }, [stageBounds]);
 
   useEffect(() => {
-    redrawCanvas(drawingStrokeRef.current);
+    redrawCanvas(drawingStrokeRef.current ?? pointerTrailRef.current);
   }, [drawingStrokes, stageBounds.width, stageBounds.height]);
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(pointerTrailTimeoutRef.current);
+    },
+    [],
+  );
 
   function startDrawing(pointerEvent) {
     if (draggingMarkerIdRef.current || paletteDragRef.current || pointerEvent.button === 2) {
       return;
     }
 
+    if (isPointerTool) {
+      window.clearTimeout(pointerTrailTimeoutRef.current);
+      pointerEvent.preventDefault();
+      const point = clientPointToNormalized(pointerEvent.clientX, pointerEvent.clientY, stageBounds);
+
+      pointerTrailRef.current = {
+        id: `pointer-trail-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        tool: TOOLS.PEN,
+        color: toolSettings.penColor,
+        lineWidth: Math.max(toolSettings.lineWidth, 4),
+        opacity: 0.65,
+        points: [point],
+      };
+
+      redrawCanvas(pointerTrailRef.current);
+      pointerEvent.currentTarget.setPointerCapture(pointerEvent.pointerId);
+      return;
+    }
+
+    if (!isDrawingTool) {
+      return;
+    }
+
     pointerEvent.preventDefault();
 
-    if (toolSettings.activeTool === 'line-eraser') {
+    if (toolSettings.activeTool === TOOLS.LINE_ERASER) {
       lineEraseActiveRef.current = true;
       eraseStrokeAtPointer(pointerEvent);
       pointerEvent.currentTarget.setPointerCapture(pointerEvent.pointerId);
@@ -249,7 +296,23 @@ export default function CourtBoard({
   }
 
   function updateDrawing(pointerEvent) {
-    if (toolSettings.activeTool === 'line-eraser') {
+    if (isPointerTool) {
+      if (!pointerTrailRef.current) {
+        return;
+      }
+
+      pointerEvent.preventDefault();
+      const point = clientPointToNormalized(pointerEvent.clientX, pointerEvent.clientY, stageBounds);
+      pointerTrailRef.current = {
+        ...pointerTrailRef.current,
+        points: [...pointerTrailRef.current.points, point],
+      };
+
+      redrawCanvas(pointerTrailRef.current);
+      return;
+    }
+
+    if (toolSettings.activeTool === TOOLS.LINE_ERASER) {
       if (!lineEraseActiveRef.current) {
         return;
       }
@@ -274,7 +337,22 @@ export default function CourtBoard({
   }
 
   function endDrawing(pointerEvent) {
-    if (toolSettings.activeTool === 'line-eraser') {
+    if (isPointerTool) {
+      if (!pointerTrailRef.current) {
+        return;
+      }
+
+      pointerEvent.preventDefault();
+      schedulePointerTrailClear();
+
+      if (pointerEvent.currentTarget.hasPointerCapture(pointerEvent.pointerId)) {
+        pointerEvent.currentTarget.releasePointerCapture(pointerEvent.pointerId);
+      }
+
+      return;
+    }
+
+    if (toolSettings.activeTool === TOOLS.LINE_ERASER) {
       lineEraseActiveRef.current = false;
 
       if (pointerEvent.currentTarget.hasPointerCapture(pointerEvent.pointerId)) {
@@ -415,7 +493,9 @@ export default function CourtBoard({
 
             <canvas
               ref={canvasRef}
-              className="drawing-layer"
+              className={`drawing-layer ${
+                isDrawingTool || isPointerTool ? 'drawing-layer--active' : ''
+              }`.trim()}
               onPointerDown={startDrawing}
               onPointerMove={updateDrawing}
               onPointerUp={endDrawing}

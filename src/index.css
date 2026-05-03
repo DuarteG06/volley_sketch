@@ -342,6 +342,10 @@ code {
 
 .drawing-layer {
   z-index: 2;
+  cursor: default;
+}
+
+.drawing-layer--active {
   cursor: crosshair;
 }
 

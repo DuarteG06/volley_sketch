@@ -5,6 +5,13 @@ export const COURT_MODES = {
   HALF: 'half',
 };
 
+export const TOOLS = {
+  POINTER: 'pointer',
+  PEN: 'pen',
+  ERASER: 'eraser',
+  LINE_ERASER: 'line-eraser',
+};
+
 export const PLAYER_DEFINITIONS = [
   { id: 'OH1', label: 'OH1' },
   { id: 'OH2', label: 'OH2' },
@@ -16,7 +23,7 @@ export const PLAYER_DEFINITIONS = [
 ];
 
 export const DEFAULT_TOOL_SETTINGS = {
-  activeTool: 'pen',
+  activeTool: TOOLS.PEN,
   penColor: '#124559',
   lineWidth: 4,
 };

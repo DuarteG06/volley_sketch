@@ -8,6 +8,7 @@ import {
   PLAYER_DEFINITIONS,
   STARTER_MARKER_LAYOUTS,
   STORAGE_KEY,
+  TOOLS,
 } from '../constants';
 
 function cloneDefaults() {
@@ -38,7 +39,7 @@ function sanitizeStroke(stroke) {
 
   return {
     id: typeof stroke.id === 'string' ? stroke.id : `stroke-${Date.now()}`,
-    tool: stroke.tool === 'eraser' ? 'eraser' : 'pen',
+    tool: stroke.tool === TOOLS.ERASER ? TOOLS.ERASER : TOOLS.PEN,
     color: typeof stroke.color === 'string' ? stroke.color : DEFAULT_TOOL_SETTINGS.penColor,
     lineWidth:
       typeof stroke.lineWidth === 'number' && stroke.lineWidth > 0
@@ -151,12 +152,18 @@ export function loadAppState() {
     }
 
     if (parsedState.toolSettings) {
+      const storedTool = parsedState.toolSettings.activeTool;
+      const activeTool =
+        storedTool === TOOLS.POINTER ||
+        storedTool === TOOLS.PEN ||
+        storedTool === TOOLS.ERASER ||
+        storedTool === TOOLS.LINE_ERASER ||
+        storedTool === null
+          ? storedTool
+          : DEFAULT_TOOL_SETTINGS.activeTool;
+
       state.toolSettings = {
-        activeTool:
-          parsedState.toolSettings.activeTool === 'eraser' ||
-          parsedState.toolSettings.activeTool === 'line-eraser'
-            ? parsedState.toolSettings.activeTool
-            : DEFAULT_TOOL_SETTINGS.activeTool,
+        activeTool,
         penColor:
           typeof parsedState.toolSettings.penColor === 'string'
             ? parsedState.toolSettings.penColor

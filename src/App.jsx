@@ -105,7 +105,7 @@ export default function App() {
       ...currentState,
       toolSettings: {
         ...currentState.toolSettings,
-        activeTool,
+        activeTool: currentState.toolSettings.activeTool === activeTool ? null : activeTool,
       },
     }));
   }

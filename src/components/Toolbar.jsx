@@ -1,4 +1,4 @@
-import { COURT_MODES } from '../constants';
+import { COURT_MODES, TOOLS } from '../constants';
 
 const THICKNESS_OPTIONS = [2, 4, 6, 8, 10];
 const COLOR_OPTIONS = ['#124559', '#0b6e4f', '#b33f62', '#f28f3b', '#22223b'];
@@ -45,25 +45,36 @@ export default function Toolbar({
 
         <section className="control-group">
           <span className="control-group__label">Tools</span>
-          <div className="segmented-control" role="group" aria-label="Drawing tools">
+          <div className="segmented-control" role="group" aria-label="Board tools">
             <button
               type="button"
-              className={toolSettings.activeTool === 'pen' ? 'is-active' : ''}
-              onClick={() => onToolChange('pen')}
+              className={toolSettings.activeTool === TOOLS.POINTER ? 'is-active' : ''}
+              aria-pressed={toolSettings.activeTool === TOOLS.POINTER}
+              onClick={() => onToolChange(TOOLS.POINTER)}
+            >
+              Pointer
+            </button>
+            <button
+              type="button"
+              className={toolSettings.activeTool === TOOLS.PEN ? 'is-active' : ''}
+              aria-pressed={toolSettings.activeTool === TOOLS.PEN}
+              onClick={() => onToolChange(TOOLS.PEN)}
             >
               Pen
             </button>
             <button
               type="button"
-              className={toolSettings.activeTool === 'eraser' ? 'is-active' : ''}
-              onClick={() => onToolChange('eraser')}
+              className={toolSettings.activeTool === TOOLS.ERASER ? 'is-active' : ''}
+              aria-pressed={toolSettings.activeTool === TOOLS.ERASER}
+              onClick={() => onToolChange(TOOLS.ERASER)}
             >
               Eraser
             </button>
             <button
               type="button"
-              className={toolSettings.activeTool === 'line-eraser' ? 'is-active' : ''}
-              onClick={() => onToolChange('line-eraser')}
+              className={toolSettings.activeTool === TOOLS.LINE_ERASER ? 'is-active' : ''}
+              aria-pressed={toolSettings.activeTool === TOOLS.LINE_ERASER}
+              onClick={() => onToolChange(TOOLS.LINE_ERASER)}
             >
               Line eraser
             </button>
@@ -106,7 +117,7 @@ export default function Toolbar({
                 className={toolSettings.penColor === color ? 'is-active' : ''}
                 style={{ '--swatch': color }}
                 onClick={() => onColorChange(color)}
-                disabled={toolSettings.activeTool !== 'pen'}
+                disabled={toolSettings.activeTool !== TOOLS.PEN}
               />
             ))}
           </div>
